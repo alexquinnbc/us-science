@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Unraveling of US Science</title>
+    <!--
+    README: The Unraveling of US Science - An Interactive Narrative
+    ================================================================
+
+    This is a self-contained, single-file interactive web experience that tells the story of how proposed 2026 budget cuts threaten the United States' scientific leadership.
+
+    --- USAGE ---
+    Simply open this `index.html` file in any modern web browser. No internet connection, server, or build process is required after initial loading.
+
+    --- STRUCTURE ---
+    The file is structured to be portable and maintainable:
+    1.  <head>: Contains metadata and all CSS within a single <style> tag.
+    2.  <body>: Contains all semantic HTML content for the narrative.
+    3.  Main <script> (at end of body): Contains the core application logic, encapsulated in an IIFE to prevent global scope pollution. The logic is organized into modular components (e.g., for scroll animations, data visualizations, the quiz).
+    4.  Test Suite <script type="module">: An embedded, non-blocking test suite that verifies the integrity of the application and logs results to the developer console.
+
+    --- FEATURES ---
+    *   Scrolling Narrative: A story that unfolds as the user scrolls, using IntersectionObserver for high performance.
+    *   Data Visualization: Dynamically generated SVG charts and counters illustrate the impact of the cuts.
+    *   Fully Responsive: Adapts to mobile, tablet, and desktop screens.
+    *   Interactive Quiz: Reinforces key information from the source material.
+    *   Accessibility: Built with semantic HTML, ARIA roles, keyboard navigation, high-contrast colors, and a `prefers-reduced-motion` media query.
+    *   Zero Dependencies: Runs entirely on vanilla HTML, CSS, and JavaScript. All assets are inlined.
+
+    --- KNOWN LIMITATIONS ---
+    *   Content is based solely on the provided source text.
+    *   The narrative is a dramatization and interpretation of the potential effects described in the sources.
+    *   As a single-file application, it is not designed for large-scale content updates without editing the source code directly.
+    -->
+    <style>
+        /* ------------------------- */
+        /* --- 0. BASE & RESET --- */
+        /* ------------------------- */
+        :root {
+            --color-background: #0d1117;
+            --color-text: #c9d1d9;
+            --color-heading: #ffffff;
+            --color-primary: #58a6ff;
+            --color-accent: #f78166;
+            --color-danger: #f85149;
+            --color-success: #3fb950;
+            --color-surface: #161b22;
+            --color-border: #30363d;
+            --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            --font-family-mono: "SF Mono", "Consolas", "Liberation Mono", Menlo, Courier, monospace;
+            --font-size-base: 1rem; /* 16px */
+            --font-size-lg: 1.25rem;
+            --font-size-xl: 1.5rem;
+            --font-size-xxl: 2.5rem;
+            --line-height-base: 1.6;
+            --spacing-unit: 1.5rem;
+            --border-radius: 8px;
+            --transition-speed: 0.3s;
+            --max-width: 800px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scrollbar-color: var(--color-border) var(--color-background);
+        }
+
+        body {
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: var(--font-family-sans);
+            font-size: var(--font-size-base);
+            line-height: var(--line-height-base);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ------------------------- */
+        /* --- 1. LAYOUT & TYPOGRAPHY --- */
+        /* ------------------------- */
+        .container {
+            width: 100%;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 calc(var(--spacing-unit) * 1.5);
+        }
+
+        h1, h2, h3 {
+            color: var(--color-heading);
+            font-weight: 600;
+            line-height: 1.2;
+            margin-bottom: var(--spacing-unit);
+            letter-spacing: -0.5px;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            text-align: center;
+        }
+
+        h2 {
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            color: var(--color-primary);
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 0.5rem;
+        }
+        
+        h3 {
+            font-size: var(--font-size-xl);
+            color: var(--color-accent);
+        }
+
+        p {
+            margin-bottom: var(--spacing-unit);
+        }
+
+        a {
+            color: var(--color-primary);
+            text-decoration: none;
+            transition: color var(--transition-speed) ease;
+        }
+
+        a:hover, a:focus {
+            color: var(--color-accent);
+            text-decoration: underline;
+        }
+
+        strong {
+            color: var(--color-heading);
+            font-weight: 600;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--color-accent);
+            color: white;
+            padding: 8px;
+            z-index: 100;
+            transition: top 0.3s;
+        }
+
+        .skip-link:focus {
+           top: 0;
+        }
+        
+        /* ------------------------- */
+        /* --- 2. SCROLL & SECTIONS --- */
+        /* ------------------------- */
+        .site-header {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: var(--spacing-unit);
+            text-align: center;
+            position: relative;
+        }
+
+        .site-header .subtitle {
+            font-size: var(--font-size-lg);
+            max-width: 650px;
+            color: var(--color-text);
+        }
+
+        .scroll-down-indicator {
+            position: absolute;
+            bottom: 2rem;
+            color: var(--color-text);
+            font-size: 0.9rem;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        main > section {
+            padding: calc(var(--spacing-unit) * 4) 0;
+            min-height: 90vh;
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(50px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        main > section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            main > section {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+            @keyframes bounce { animation: none; }
+        }
+
+        /* ------------------------- */
+        /* --- 3. COMPONENTS --- */
+        /* ------------------------- */
+
+        /* --- DATA VIZ --- */
+        .data-viz-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: calc(var(--spacing-unit) * 1.5);
+            width: 100%;
+        }
+
+        .stat-card {
+            background-color: var(--color-surface);
+            padding: var(--spacing-unit);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-border);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .stat-card .agency-name {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            margin-bottom: var(--spacing-unit);
+            color: var(--color-heading);
+        }
+
+        .stat-card .cut-value {
+            font-size: var(--font-size-xxl);
+            font-weight: 700;
+            color: var(--color-danger);
+            margin-bottom: 0.5rem;
+        }
+
+        .bar-chart-container {
+            width: 100%;
+        }
+
+        .bar-chart {
+            width: 100%;
+            height: 40px;
+            background-color: var(--color-background);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+            margin-top: 1rem;
+        }
+
+        .bar-chart .bar {
+            height: 100%;
+            background-color: var(--color-danger);
+            width: 100%;
+            transform-origin: left;
+            transform: scaleX(0);
+            transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .is-visible .bar {
+            transform: scaleX(1);
+        }
+        
+        .stat-card .stat-description {
+            font-size: 0.9rem;
+            color: var(--color-text);
+            margin-top: 0.5rem;
+            flex-grow: 1;
+        }
+        
+        .counters-container {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: calc(var(--spacing-unit) * 3);
+        }
+        
+        @media (min-width: 768px) {
+            .counters-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        .large-counter {
+            font-family: var(--font-family-mono);
+            font-size: clamp(3rem, 10vw, 6rem);
+            font-weight: 700;
+            text-align: center;
+            margin: var(--spacing-unit) 0;
+            color: var(--color-accent);
+        }
+
+        .counter-label {
+            text-align: center;
+            font-size: var(--font-size-lg);
+        }
+
+        /* --- QUIZ --- */
+        #quiz-container {
+            width: 100%;
+            background-color: var(--color-surface);
+            border-radius: var(--border-radius);
+            padding: calc(var(--spacing-unit) * 1.5);
+            border: 1px solid var(--color-border);
+        }
+
+        .quiz-question {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            margin-bottom: var(--spacing-unit);
+            color: var(--color-heading);
+        }
+
+        .quiz-options {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .quiz-option {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            border: 1px solid var(--color-border);
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: var(--font-family-sans);
+            font-size: var(--font-size-base);
+            text-align: left;
+            cursor: pointer;
+            border-radius: var(--border-radius);
+            transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+        
+        .quiz-option:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .quiz-option:not(:disabled):hover, .quiz-option:not(:disabled):focus {
+            background-color: var(--color-border);
+            border-color: var(--color-primary);
+            outline: none;
+        }
+
+        .quiz-option.correct {
+            background-color: rgba(63, 185, 80, 0.2);
+            border-color: var(--color-success);
+        }
+        
+        .quiz-option.incorrect {
+            background-color: rgba(248, 81, 73, 0.2);
+            border-color: var(--color-danger);
+        }
+
+        .quiz-feedback {
+            margin-top: var(--spacing-unit);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+        }
+
+        .quiz-feedback.correct {
+            background-color: rgba(63, 185, 80, 0.1);
+            color: var(--color-success);
+        }
+        
+        .quiz-feedback.incorrect {
+            background-color: rgba(248, 81, 73, 0.1);
+            color: var(--color-danger);
+        }
+
+        .quiz-navigation {
+            margin-top: var(--spacing-unit);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        #quiz-next-btn {
+            padding: 0.75rem 1.5rem;
+            background-color: var(--color-primary);
+            color: var(--color-background);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        #quiz-next-btn:hover:not(:disabled), #quiz-next-btn:focus:not(:disabled) {
+            background-color: var(--color-accent);
+        }
+        
+        #quiz-next-btn:disabled {
+            background-color: var(--color-border);
+            cursor: not-allowed;
+        }
+
+        #quiz-progress {
+            font-family: var(--font-family-mono);
+            font-size: 0.9rem;
+        }
+        
+        #quiz-score-container {
+            text-align: center;
+        }
+        
+        #quiz-score-container h3 {
+             margin-bottom: var(--spacing-unit);
+        }
+
+        #quiz-score {
+            font-size: var(--font-size-xxl);
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+        
+        #quiz-restart-btn {
+            margin-top: var(--spacing-unit);
+            padding: 0.75rem 1.5rem;
+            background-color: var(--color-accent);
+            color: var(--color-background);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        /* --- GLOSSARY --- */
+        #glossary-container {
+            width: 100%;
+        }
+
+        .glossary-item {
+            margin-bottom: var(--spacing-unit);
+            padding-bottom: var(--spacing-unit);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .glossary-item dt {
+            font-weight: 600;
+            color: var(--color-heading);
+        }
+
+        .glossary-item dd {
+            margin-left: 0;
+            font-size: 0.95rem;
+        }
+
+        /* --- ICONS & ILLUSTRATIONS --- */
+        .illustration-container {
+            text-align: center;
+            margin: calc(var(--spacing-unit) * 2) 0;
+        }
+        .illustration-svg {
+            width: 100%;
+            max-width: 250px;
+            height: auto;
+        }
+
+        .illustration-svg .stroke {
+            stroke: var(--color-accent);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .illustration-svg .fill {
+            fill: var(--color-primary);
+        }
+
+        .footer {
+            text-align: center;
+            padding: calc(var(--spacing-unit) * 2);
+            font-size: 0.9rem;
+            color: var(--color-text);
+            border-top: 1px solid var(--color-border);
+        }
+
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <header class="site-header">
+        <div class="container">
+            <h1>The Unraveling of US Science</h1>
+            <p class="subtitle">An interactive story based on proposed 2026 budget cuts and their cascading effects, threatening decades of American scientific leadership.</p>
+        </div>
+        <div class="scroll-down-indicator">Scroll to begin</div>
+    </header>
+
+    <main id="main-content">
+
+        <section class="scroll-section" aria-labelledby="order1-heading">
+            <div class="container">
+                <h2 id="order1-heading">1st Order Effect: The Direct Cut</h2>
+                <p>The story begins with a plan for massive, direct budget cuts to the nation's key scientific research agencies. These are not trims; they are radical reductions that dismantle programs and facilities.</p>
+                <div class="data-viz-grid">
+                    <div class="stat-card">
+                        <div>
+                            <div class="agency-name">National Institutes of Health (NIH)</div>
+                            <div class="cut-value">-40%</div>
+                            <p class="stat-description">Health research would be slashed, and its 19 institutes pared down to just eight, forcing unconventional mergers.</p>
+                        </div>
+                        <div class="bar-chart-container">
+                            <div class="bar-chart"><div class="bar" style="--bar-width: 40%;"></div></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div>
+                            <div class="agency-name">National Science Foundation (NSF)</div>
+                            <div class="cut-value">-50%+</div>
+                            <p class="stat-description">Funding for fundamental research in biology, engineering, and computer science would be slashed by over 60-70%.</p>
+                        </div>
+                        <div class="bar-chart-container">
+                            <div class="bar-chart"><div class="bar" style="--bar-width: 50%;"></div></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div>
+                            <div class="agency-name">NASA Science</div>
+                            <div class="cut-value">-50%</div>
+                            <p class="stat-description">Planetary science budget cut in half. The Mars Sample Return mission would be canceled, and active missions like Juno ended.</p>
+                        </div>
+                        <div class="bar-chart-container">
+                             <div class="bar-chart"><div class="bar" style="--bar-width: 50%;"></div></div>
+                        </div>
+                    </div>
+                     <div class="stat-card">
+                        <div>
+                            <div class="agency-name">Dept. of Energy (Renewables)</div>
+                            <div class="cut-value">-100%</div>
+                            <p class="stat-description">Funding for wind, solar, and renewable grid integration would be entirely zeroed out, ending all programs.</p>
+                        </div>
+                        <div class="bar-chart-container">
+                            <div class="bar-chart"><div class="bar" style="--bar-width: 100%;"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="scroll-section" aria-labelledby="order2-heading">
+            <div class="container">
+                <h2 id="order2-heading">2nd & 3rd Order: The Ripple Effect</h2>
+                <p>The direct cuts immediately trigger a catastrophic decline in research activity and an exodus of talent. Fewer grants are funded, and the very people who power discovery are left without support.</p>
+                <div class="counters-container">
+                    <div class="counter-card">
+                        <div class="large-counter" data-target="7" data-start="26" data-suffix="%">26%</div>
+                        <div class="counter-label">NSF Grant Funding Rate</div>
+                        <p class="stat-description">The chance of a scientist receiving a grant for fundamental research would plummet, stifling new ideas before they can even begin.</p>
+                    </div>
+                    <div class="counter-card">
+                        <div class="large-counter" data-target="90000" data-start="300000" data-separator=",">300,000</div>
+                        <div class="counter-label">People in NSF-Funded Activities</div>
+                        <p class="stat-description">Over 200,000 researchers, students, and technicians would lose their funding, creating a massive brain drain.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="scroll-section" aria-labelledby="order4-heading">
+            <div class="container">
+                <h2 id="order4-heading">4th & 5th Order: A Fractured Foundation</h2>
+                <p>With research capacity crippled and talent leaving, the pipeline that supplies our future scientists and engineers breaks. High-tech industries, starved of domestic talent, face a difficult choice, and America's competitive edge dulls.</p>
+                 <div class="illustration-container">
+                     <!-- Inlined SVG of a broken chain -->
+                    <svg class="illustration-svg" viewBox="0 0 100 50" aria-label="An illustration of a broken chain link, symbolizing a broken STEM pipeline.">
+                        <g class="stroke">
+                            <path d="M25,25 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0"/>
+                            <path d="M75,25 a10,10 0 1,0 -20,0 a10,10 0 1,0 20,0"/>
+                            <path d="M45,25 h-5"/>
+                            <path d="M60,25 h-5"/>
+                        </g>
+                    </svg>
+                 </div>
+                <p><strong>Support is cut at every stage of the educational pipeline for STEM careers.</strong> This includes the elimination of nearly every program aimed at broadening participation in science. High-tech industries may face "staffing concerns," potentially requiring them to relocate overseas. The nation risks abandoning its scientific leadership.</p>
+            </div>
+        </section>
+
+        <section class="scroll-section" aria-labelledby="order6-heading">
+            <div class="container">
+                <h2 id="order6-heading">6th & 7th Order: A Generational Void</h2>
+                <p>This is the final, most devastating effect: a fundamental, long-term shift. The damage isn't just about lost projects; it's about a lost future. The sources warn that these changes represent a <strong>"radical break from the previous trajectory"</strong> of science funding.</p>
+                <div class="illustration-container">
+                     <!-- Inlined SVG of a crumbling pillar -->
+                     <svg class="illustration-svg" viewBox="0 0 64 64" aria-label="An illustration of a crumbling classical pillar, symbolizing damage to the institution of science.">
+                        <path class="fill" d="M12 58h40v4H12zM14 12h36v4H14zM16 8h32v4H16zM20 18h24v38H20z"></path>
+                        <path class="stroke" d="M45 25l-5 4M46 35l-6 4M44 45l-5 5M18 22l5 3M19 32l4 4M20 48l5 3"></path>
+                    </svg>
+                </div>
+                <p>The harm is described as so widespread that the recovery would take <strong>decades</strong>, and the damage would <strong>"last for generations."</strong> By blocking the development of new infrastructure and talent, the U.S. would cease to be the scientific powerhouse it once was, fundamentally altering the global balance of power, innovation, and our ability to solve future crises.</p>
+            </div>
+        </section>
+
+        <section class="scroll-section" aria-labelledby="quiz-heading">
+            <div class="container">
+                <h2 id="quiz-heading">Test Your Knowledge</h2>
+                <p>Based on the information presented, how well do you understand the potential impact of these cuts?</p>
+                <div id="quiz-container">
+                    <!-- Quiz content will be injected by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <section class="scroll-section" aria-labelledby="glossary-heading">
+            <div class="container">
+                <h2 id="glossary-heading">Glossary of Key Terms</h2>
+                <p>Definitions for the agencies, projects, and terms mentioned in this story.</p>
+                <div id="glossary-container">
+                     <!-- Glossary content will be injected by JavaScript -->
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer class="footer">
+        <p>This interactive narrative was created based on the provided source material regarding proposed 2026 US science budget cuts.</p>
+    </footer>
+
+    <script>
+    (function() {
+        'use strict';
+
+        /**
+         * --------------------------------
+         * MODULE: SCROLL ANIMATOR
+         * Animates sections on scroll-in
+         * --------------------------------
+         */
+        const ScrollAnimator = {
+            init() {
+                const sections = document.querySelectorAll('.scroll-section');
+                if (!('IntersectionObserver' in window)) {
+                    // Fallback for older browsers
+                    sections.forEach(section => section.classList.add('is-visible'));
+                    return;
+                }
+
+                const observer = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('is-visible');
+                            // Animate counters if the section is visible
+                            if (entry.target.contains(document.querySelector('[data-target]'))) {
+                                Counter.init(entry.target);
+                            }
+                            // Animate bars if the section is visible
+                             if (entry.target.contains(document.querySelector('.bar'))) {
+                                entry.target.querySelectorAll('.bar').forEach(bar => {
+                                    bar.style.transform = `scaleX(${bar.style.getPropertyValue('--bar-width')})`;
+                                });
+                            }
+                        }
+                    });
+                }, {
+                    rootMargin: '0px',
+                    threshold: 0.15
+                });
+
+                sections.forEach(section => {
+                    observer.observe(section);
+                });
+            }
+        };
+
+        /**
+         * --------------------------------
+         * MODULE: COUNTER
+         * Animates numbers
+         * --------------------------------
+         */
+        const Counter = {
+            init(container) {
+                const counters = container.querySelectorAll('[data-target]');
+                counters.forEach(counter => {
+                    if (counter.dataset.animated) return; // Prevent re-animating
+                    counter.dataset.animated = 'true';
+
+                    const target = +counter.dataset.target;
+                    const start = +counter.dataset.start;
+                    const duration = 2000;
+                    const suffix = counter.dataset.suffix || '';
+                    const separator = counter.dataset.separator || '';
+                    
+                    let startTimestamp = null;
+                    const step = (timestamp) => {
+                        if (!startTimestamp) startTimestamp = timestamp;
+                        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                        const currentValue = Math.floor(progress * (target - start) + start);
+                        
+                        let displayText = currentValue.toString();
+                        if (separator) {
+                           displayText = displayText.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+                        }
+
+                        counter.innerText = displayText + suffix;
+
+                        if (progress < 1) {
+                            window.requestAnimationFrame(step);
+                        }
+                    };
+                    window.requestAnimationFrame(step);
+                });
+            }
+        };
+
+        /**
+         * --------------------------------
+         * MODULE: QUIZ
+         * Handles interactive quiz logic
+         * --------------------------------
+         */
+        const Quiz = {
+            quizData: [
+                {
+                    question: "What is the proposed budget reduction for the National Science Foundation (NSF)?",
+                    options: ["Around 10%", "Over 50%", "25%", "No change"],
+                    answer: "Over 50%"
+                },
+                {
+                    question: "Which major NASA mission is slated for cancellation under the proposed budget?",
+                    options: ["James Webb Space Telescope", "Juno Mission", "Mars Sample Return", "Hubble Space Telescope"],
+                    answer: "Mars Sample Return"
+                },
+                {
+                    question: "The NSF's grant funding rate is expected to drop from 26% to what new level?",
+                    options: ["20%", "15%", "10%", "7%"],
+                    answer: "7%"
+                },
+                {
+                    question: "What area within the Department of Energy faces a complete 'zeroing out' of its budget?",
+                    options: ["High-Energy Physics", "Nuclear Fusion", "Wind, solar, and grid integration", "Biological Research"],
+                    answer: "Wind, solar, and grid integration"
+                },
+                {
+                    question: "According to the source material, how long would the damage to US science take to recover from?",
+                    options: ["A few years", "A single decade", "Decades, lasting for generations", "It cannot be recovered"],
+                    answer: "Decades, lasting for generations"
+                }
+            ],
+            currentQuestionIndex: 0,
+            score: 0,
+            
+            init() {
+                this.cacheDOMElements();
+                this.renderQuestion();
+            },
+
+            cacheDOMElements() {
+                this.container = document.getElementById('quiz-container');
+            },
+            
+            renderQuestion() {
+                if (this.currentQuestionIndex >= this.quizData.length) {
+                    this.showScore();
+                    return;
+                }
+
+                const questionData = this.quizData[this.currentQuestionIndex];
+                
+                // Shuffle options for variety
+                const shuffledOptions = [...questionData.options].sort(() => Math.random() - 0.5);
+
+                this.container.innerHTML = `
+                    <p id="quiz-progress" role="status">Question ${this.currentQuestionIndex + 1} of ${this.quizData.length}</p>
+                    <p class="quiz-question">${questionData.question}</p>
+                    <div class="quiz-options" role="radiogroup">
+                        ${shuffledOptions.map(option => `
+                            <button class="quiz-option" data-answer="${option}">${option}</button>
+                        `).join('')}
+                    </div>
+                    <div id="quiz-feedback-container"></div>
+                    <div class="quiz-navigation">
+                        <button id="quiz-next-btn" disabled>Next Question</button>
+                    </div>
+                `;
+
+                this.addOptionListeners();
+            },
+
+            addOptionListeners() {
+                const options = this.container.querySelectorAll('.quiz-option');
+                options.forEach(option => {
+                    option.addEventListener('click', (e) => this.handleAnswer(e));
+                });
+                
+                document.getElementById('quiz-next-btn').addEventListener('click', () => this.nextQuestion());
+            },
+
+            handleAnswer(e) {
+                const selectedOption = e.target;
+                const answer = selectedOption.dataset.answer;
+                const correctAnswer = this.quizData[this.currentQuestionIndex].answer;
+
+                const options = this.container.querySelectorAll('.quiz-option');
+                options.forEach(opt => {
+                    opt.disabled = true; // Disable all options after one is chosen
+                    if (opt.dataset.answer === correctAnswer) {
+                        opt.classList.add('correct');
+                    } else if (opt.dataset.answer === answer) {
+                        opt.classList.add('incorrect');
+                    }
+                });
+
+                const feedbackContainer = document.getElementById('quiz-feedback-container');
+                if (answer === correctAnswer) {
+                    this.score++;
+                    feedbackContainer.innerHTML = `<div class="quiz-feedback correct">Correct!</div>`;
+                } else {
+                    feedbackContainer.innerHTML = `<div class="quiz-feedback incorrect">Incorrect. The correct answer is: ${correctAnswer}</div>`;
+                }
+                
+                document.getElementById('quiz-next-btn').disabled = false;
+                document.getElementById('quiz-next-btn').focus();
+            },
+            
+            nextQuestion() {
+                this.currentQuestionIndex++;
+                this.renderQuestion();
+            },
+            
+            showScore() {
+                this.container.innerHTML = `
+                    <div id="quiz-score-container">
+                        <h3>Quiz Complete!</h3>
+                        <p>You scored:</p>
+                        <div id="quiz-score">${this.score} / ${this.quizData.length}</div>
+                        <button id="quiz-restart-btn">Try Again</button>
+                    </div>
+                `;
+                document.getElementById('quiz-restart-btn').addEventListener('click', () => this.restart());
+            },
+            
+            restart() {
+                this.currentQuestionIndex = 0;
+                this.score = 0;
+                this.renderQuestion();
+            }
+        };
+
+        /**
+         * --------------------------------
+         * MODULE: GLOSSARY
+         * Populates glossary from data
+         * --------------------------------
+         */
+        const Glossary = {
+            glossaryData: {
+                "National Institutes of Health (NIH)": "A primary agency of the United States government responsible for biomedical and public health research.",
+                "National Science Foundation (NSF)": "An independent agency of the United States government that supports fundamental research and education in all the non-medical fields of science and engineering.",
+                "NASA": "The National Aeronautics and Space Administration; the U.S. agency responsible for the civilian space program, as well as aeronautics and aerospace research.",
+                "LIGO": "Laser Interferometer Gravitational-Wave Observatory; a large-scale physics experiment and observatory to detect cosmic gravitational waves.",
+                "Thirty Meter Telescope": "A proposed extremely large telescope to be built at the summit of Mauna Kea in Hawaii.",
+                "Department of Energy (DOE)": "A cabinet-level department of the United States government concerned with the United States' policies regarding energy and safety in handling nuclear material.",
+                "STEM": "An acronym for Science, Technology, Engineering, and Mathematics.",
+                "Mars Sample Return": "A proposed multi-mission campaign to collect rock and dust samples from Mars and return them to Earth for detailed analysis."
+            },
+            init() {
+                const container = document.getElementById('glossary-container');
+                if (!container) return;
+
+                const dl = document.createElement('dl');
+                for (const term in this.glossaryData) {
+                    const definition = this.glossaryData[term];
+                    const item = document.createElement('div');
+                    item.classList.add('glossary-item');
+                    item.innerHTML = `
+                        <dt>${term}</dt>
+                        <dd>${definition}</dd>
+                    `;
+                    dl.appendChild(item);
+                }
+                container.appendChild(dl);
+            }
+        };
+
+        /**
+         * --------------------------------
+         * APP INITIALIZATION
+         * --------------------------------
+         */
+        function initialize() {
+            ScrollAnimator.init();
+            Quiz.init();
+            Glossary.init();
+        }
+
+        // Wait for the DOM to be fully loaded before running scripts
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initialize);
+        } else {
+            initialize();
+        }
+
+    })();
+    </script>
+
+    <script type="module" id="test-suite">
+        /**
+         * --------------------------------------------------------------------
+         * EMBEDDED TEST SUITE
+         * This runs automatically and logs results to the developer console.
+         * It does not interfere with the main application.
+         * --------------------------------------------------------------------
+         */
+        class TestSuite {
+            constructor(name) {
+                this.name = name;
+                this.tests = [];
+                this.passed = 0;
+                this.failed = 0;
+            }
+
+            test(description, fn) {
+                this.tests.push({ description, fn });
+            }
+
+            assert(condition, message) {
+                if (!condition) {
+                    throw new Error(message || 'Assertion failed');
+                }
+            }
+            
+            assertEquals(actual, expected, message) {
+                 if (actual !== expected) {
+                    throw new Error(message || `Failed: Expected ${expected}, but got ${actual}`);
+                }
+            }
+
+            async run() {
+                console.group(`🔬 Running Test Suite: ${this.name}`);
+                for (const { description, fn } of this.tests) {
+                    try {
+                        await fn();
+                        console.log(`✅ PASS: ${description}`);
+                        this.passed++;
+                    } catch (e) {
+                        console.error(`❌ FAIL: ${description}`);
+                        console.error(e);
+                        this.failed++;
+                    }
+                }
+                console.groupEnd();
+                this.report();
+            }
+
+            report() {
+                console.group("📊 Test Report");
+                console.log(`Total tests: ${this.tests.length}`);
+                console.info(`Passed: ${this.passed}`);
+                if (this.failed > 0) {
+                    console.error(`Failed: ${this.failed}`);
+                } else {
+                    console.log(`Failed: ${this.failed}`);
+                }
+                console.groupEnd();
+            }
+        }
+
+        const suite = new TestSuite("Interactive Narrative Integrity");
+
+        suite.test("Document Structure: Essential elements are present", () => {
+            suite.assert(document.querySelector('html[lang="en"]'), "<html> tag should have lang='en' attribute.");
+            suite.assert(document.getElementById('main-content'), "#main-content container exists.");
+            suite.assert(document.querySelectorAll('.scroll-section').length > 4, "At least 5 scroll sections should exist.");
+            suite.assert(document.getElementById('quiz-container'), "#quiz-container exists.");
+            suite.assert(document.getElementById('glossary-container'), "#glossary-container exists.");
+        });
+
+        suite.test("Accessibility: Basic checks are passing", () => {
+            suite.assert(document.querySelector('.skip-link'), "A skip link should be present.");
+            suite.assertEquals(document.querySelector('.skip-link').getAttribute('href'), '#main-content', "Skip link href should point to #main-content.");
+            document.querySelectorAll('section[aria-labelledby]').forEach(section => {
+                const id = section.getAttribute('aria-labelledby');
+                suite.assert(document.getElementById(id), `Label for section with id ${id} exists.`);
+            });
+        });
+
+        suite.test("Feature Detection: Required APIs are available", () => {
+            suite.assert('IntersectionObserver' in window, "IntersectionObserver API is supported.");
+            suite.assert('requestAnimationFrame' in window, "requestAnimationFrame API is supported.");
+        });
+        
+        suite.test("Initial State: Content visibility and animations are correctly set up", () => {
+            const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+            if (!motionQuery.matches) {
+                 document.querySelectorAll('.scroll-section').forEach(section => {
+                    const styles = window.getComputedStyle(section);
+                    suite.assertEquals(styles.opacity, '0', `Section should be initially invisible (opacity 0).`);
+                });
+            } else {
+                 console.info("Skipping animation state test due to prefers-reduced-motion.");
+            }
+        });
+
+        suite.test("Quiz and Glossary Initialization: Content is populated", () => {
+             // Let's give JS a moment to populate the DOM
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    suite.assert(document.querySelector('#quiz-container .quiz-question'), "Quiz question should be rendered on init.");
+                    suite.assert(document.querySelector('#glossary-container dl .glossary-item'), "Glossary items should be rendered on init.");
+                    resolve();
+                }, 100); // Small delay to ensure DOMContentLoaded has fired and run the init scripts
+            });
+        });
+        
+        // Run the suite after the page is fully loaded
+        window.addEventListener('load', () => suite.run());
+    </script>
+</body>
+</html>
